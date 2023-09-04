@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rwo-repl-2
+  labels:
+    robin.io/replication: "2"
+    robin.io/faultdomain: "disk"
+spec:
+  storageClassName: robin
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi

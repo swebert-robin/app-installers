@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "mysql.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "mysql.fullname" . }}
+    release: "{{ .Release.Name }}"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    #robin.io/networks: '[{"ippool": "ovs-3"}]'
+    #robin.io/robinrpool: t1
+    #robin.io/networks: '[{"ippool": "ovs-5", "static_ip_policy": "range", "static_ips":["10.9.115.210"]}]'
+    #robin.io/networks: '[{"ippool": "ovs-2", "static_ip_policy": "range", "static_ips":["10.9.115.202"]}, {"ippool": "ovs-2", "static_ip_policy": "range", "static_ips":["10.9.115.203"]}]'
+    #robin.io/networks: '[{"ippool": "ovs-2", "static_ip_policy": "range", "static_ips":["10.9.115.210"]}]'
+    #robin.io/networks: '[{"ippool": "ovs-2", "static_ip_policy": "range", "static_ips":["10.9.115.211-212"]}]'
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "mysql.fullname" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "mysql.fullname" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: {{ template "mysql.fullname" . }}
+        image: robinsys/dpdk:v1
+        command: ["/bin/sh"]
+        #args: ["-c", "yum install fio -y; while true;do  fio --name=verification --ioengine=libaio --direct=1 --rw=randwrite --bssplit=4k/20:8k/20:16k/20:32k/20:64k/20 --size=1G --verify=pattern --do_verify=1 --verify_fatal=1 --verify_pattern=0xabcd --filename=/mydata/fio-verify-data-1 --verify_dump=1 --numjobs=1 --threads=8 --iodepth=32 --offset=8K; echo 'iteration:'`date`' completed' >> /mydata/out.txt; done"]
+        #args: ["-c", "yum install fio -y; while true;do  fio --name=seq --ioengine=libaio --direct=1 --rw=randrw --bs=2M --size=1G --verify=pattern --do_verify=1 --verify_fatal=1 --verify=md5 --filename=/mydata/fio-verify-data-1 --verify_dump=1 --numjobs=1 --threads=8 --iodepth=32 ; echo 'iteration:'`date`' completed' >> /mydata/out.txt; done"]
+        args: ["-c", "while true;do  dd if=/dev/urandom of=/mydata/file.dat  bs=2M count=500 oflag=direct >> /mydata/io-perf.log 2>&1 ;sleep 5;dd if=/dev/zero of=/mydata/file.dat  bs=2M count=250 oflag=direct >> /mydata/io-perf.log 2>&1 ;sleep 5;done"]
+        #args: ["-c", "yum install fio -y;while true;do  sleep 30;done"]
+        imagePullPolicy: IfNotPresent
+        workingDir: /root/dpdk
+        securityContext:
+           capabilities:
+             add:
+               - IPC_LOCK
+               - NET_ADMIN
+               - SYS_NICE
+           privileged: true
+           allowPrivilegeEscalation: true
+        volumeMounts:
+        - mountPath: /mydata
+          name: "{{ .Release.Name }}"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 250
+      volumes:
+      - name: "{{ .Release.Name }}"
+        persistentVolumeClaim:
+          claimName: "{{ .Release.Name }}"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    robin.io/replication: "2"
+    robin.io/faultdomain: "host"
+spec:
+  storageClassName: robin
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+

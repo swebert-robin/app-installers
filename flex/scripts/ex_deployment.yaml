@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-c4
+  labels:
+    app: nfs-c4
+    kubernetes.io/instance: nfs-c4
+    kubernetes.io/name: nfs-c4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs-c4
+  template:
+    metadata:
+      labels:
+        app: nfs-c4
+        kubernetes.io/instance: nfs-c4
+        kubernetes.io/name: nfs-c4
+    spec:
+      containers:
+        - name: debian
+          image: lalitjavale/ioapps:centos8-fio
+          command: ["sh"]
+          args: [ "/run_io" ]
+          volumeMounts:
+            - mountPath: /mnt/v2
+              name: v2
+      volumes:
+        - name: v2
+          persistentVolumeClaim:
+            claimName: nfs-shared-2

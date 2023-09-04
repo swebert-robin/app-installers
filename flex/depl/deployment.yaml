@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-new2
+  labels:
+    app: nfs-new2
+    kubernetes.io/instance: nfs-new2
+    kubernetes.io/name: nfs-new2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs-new2
+  template:
+    metadata:
+      labels:
+        app: nfs-new2
+        kubernetes.io/instance: nfs-new2
+        kubernetes.io/name: nfs-new2
+    spec:
+      containers:
+        - name: debian
+          image: lalitjavale/ioapps:centos8-fio
+          command: ["sh"]
+          args: [ "/run_io" ]
+          volumeMounts:
+            - mountPath: /mnt/v1
+              name: v1
+      volumes:
+        - name: v1
+          persistentVolumeClaim:
+            claimName: nfs-shared-31
