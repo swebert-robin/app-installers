@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "mysql.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "mysql.fullname" . }}
+    release: "{{ .Release.Name }}"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "mysql.fullname" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "mysql.fullname" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: {{ template "mysql.fullname" . }}
+        image: robinsys/dpdk:v1
+        command:
+        - /bin/sh
+        args:
+        - -c
+        - yum install fio -y &&
+          while true; do
+            fio
+              --name=half_volume
+              --ioengine=libaio
+              --direct=1
+              --rw=randrw
+              --iodepth=32
+              --bs=2M
+              --size=128M
+              --filename=/mydata/half_volume.dat
+              --output=/mydata/half_volume.log;
+            sleep 1800;
+          done
+        imagePullPolicy: IfNotPresent
+        workingDir: /root/dpdk
+        securityContext:
+           capabilities:
+             add:
+               - IPC_LOCK
+               - NET_ADMIN
+               - SYS_NICE
+           privileged: true
+           allowPrivilegeEscalation: true
+        volumeMounts:
+        - mountPath: /mydata
+          name: "{{ .Release.Name }}"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 250
+      volumes:
+      - name: "{{ .Release.Name }}"
+        persistentVolumeClaim:
+          claimName: "{{ .Release.Name }}"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    robin.io/replication: "2"
+    robin.io/faultdomain: "host"
+spec:
+  storageClassName: robin
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+
